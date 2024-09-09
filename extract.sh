@@ -2,8 +2,12 @@
 # Download and parse all Cohost posts for the current user
 set -euo pipefail
 
-jq()  { command jq.exe  "$@"; } # comment this out if you're on linux/Mac
-pup() { command pup.exe "$@"; } # comment this out if you're on linux/Mac
+exists () {
+    command -v "$1" > /dev/null 2>&1
+}
+
+if exists jq.exe; then jq()  { command jq.exe  "$@"; } fi
+if exists pup.exe; then pup()  { command pup.exe  "$@"; } fi
 
 die() {
     echo "$@" >&2
