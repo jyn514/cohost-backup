@@ -33,11 +33,11 @@ def render(post):
             alt, url = img["altText"], img["fileURL"]
             alt = alt or ""
             basename = url.split("/")[-2] + path.splitext(url.split("/")[-1])[1]
-            dst = f"img/{basename}"
+            dst = f"../img/{basename}"
             if not path.exists(dst):
                 with request.urlopen(url) as download:
                     img = download.read()
-                with open(f"img/{basename}", 'wb') as f:
+                with open(dst, 'wb') as f:
                     f.write(img)
             dst = "../" + dst
             # markdown doesn't allow newlines in image alt text
