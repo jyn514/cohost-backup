@@ -44,18 +44,6 @@ extract() {
     echo "{ $get_one, shareTree: [.shareTree[] | { $get_one }] }"
 }
 
-render() {
-    render_one='.rendered = (.content | join("\n\n")) |
-        .tags = (.tags | map("#" + .) | join(", ")) |
-        .date = (.publishedAt | sub("\\.[0-9]{3}Z";"Z") | fromdate | strftime("%c UTC")) |
-        "**\(.poster.displayName) | @\(.poster.handle)** said at \(.date):
-```quote
-\(.rendered)
-```
-\(.tags)"'
-    echo "(.shareTree | map($render_one)"' | join("\n\n"))'" + ($render_one)"
-}
-
 get_token_maybe() {
     printf %s "cohost posts are public, but likes are not. to download your liked posts, this script needs to log in as you.
 to get your access token, do the following things:
