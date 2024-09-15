@@ -8,11 +8,6 @@ param (
 
 $ErrorActionPreference = "Stop"
 
-function Get-Application($app) {
-    $cmd = Get-Command $app -ErrorAction SilentlyContinue -CommandType Application | Select-Object -First 1
-    return $cmd
-}
-
 function Install-HtmlParser() {
 	# Install the PSParseHTML module on demand
 	If (-not (Get-Module -ErrorAction Ignore -ListAvailable PSParseHTML)) {
@@ -22,15 +17,10 @@ function Install-HtmlParser() {
 }
 
 function Get-Posts($file) {
-	# https://stackoverflow.com/a/77447338
 	Install-HtmlParser
-	#write-host $file
 	$contents = Get-Content -Raw $file
-	#write-host $contents
 	$dom = ConvertFrom-Html -Engine AngleSharp -Content $contents
-	#write-host $dom
 	$json = ConvertFrom-Json ($dom.QuerySelectorAll('script#trpc-dehydrated-state').TextContent)
-	#write-host $json
 	return $json.queries | %{$_.state.data.posts} | Where-Object { $_ -ne $null }
 }
 
@@ -91,16 +81,12 @@ function Format-WhoWhen($who, $when, $how) {
 }
 
 function Format-Post($post){
-	#write-host ($post -eq $null)
-	#write-host $post.content
 	$rendered = $post.content | %{
-		#write-host $post.content
 		$keys = $_.keys
 		if ("markdown" -in $keys) {
 			$_.markdown
 		} elseif ("ask" -in $keys) {
 			$ask = $_.ask
-			#write-host $ask
 			$content, $sent, $who = $ask.content, $ask.sentAt, $ask.who
 			$who_when = if ($who.anon) {
 				"anon asked at $(Format-Time $sent)"
@@ -117,13 +103,11 @@ function Format-Post($post){
 			$url = [uri]$url
 			$hash = $url.segments[-2].TrimEnd("/")
 			$ext = [System.IO.Path]::GetExtension($url.segments[-1])
-			#write-host $_.img $alt $url $url.gettype()
 			# this is a little absurd :( https://stackoverflow.com/a/73391369
 			$dst = $ExecutionContext.SessionState.Path.GetUnresolvedProviderPathFromPSPath("../img/${hash}$ext")
 			if (! (Test-Path $dst) || (Get-Item $dst).length -eq 0) {
 				write-host $url
 				$global:imgs += ("-o", $dst, $url.AbsoluteUri)
-				#write-host $global:imgs
 			}
 			# markdown doesn't allow newlines in image alt text
             # TODO: figure out how to actually keep these: https://tech.lgbt/@jyn/112117398042554191
@@ -136,7 +120,6 @@ function Format-Post($post){
 	"${who_when}:`n`n$rendered`n`n$tags"
 }
 
-echo $username
 $page = 0
 $global:imgs = @()
 New-Item -ItemType Directory -ErrorAction SilentlyContinue @('posts', 'img')
@@ -151,19 +134,14 @@ while($true) {
 		echo "https://cohost.org/${username}?page=$page"
 		curl.exe -s "https://cohost.org/${username}?page=$page" > $html
 	}
-	echo $html
 	$posts = Get-Posts $html
 	if (($posts | Measure-Object).Count -eq 0) {
 		break  # no posts left
 	}
-	Write-Output "parsing and rendering likes starting from $page"
-	#write-output $posts
+	Write-Output "parsing and rendering posts starting from $page"
 	$ir = $posts | %{ Get-ChainContent $_ }
-	#Set-PSDebug -Trace 1
-	#write-host $parsed $json
-	$ir | ConvertTo-Json -Depth 100 > $parsed
+	#$ir | ConvertTo-Json -Depth 100 > $parsed
 	$ir | %{
-		#write-host ($_ -eq $null) ($_.shareTree -eq $null)
 		$rendered = ($_.shareTree | %{Format-Post $_}) + (Format-Post $_)
 		$rendered | Join-String -Separator "`n`n" > "rendered/$($_.filename).md"
 	}
@@ -171,9 +149,6 @@ while($true) {
 }
 
 if ($global:imgs) {
-	#cd ..
 	Write-Host "Downloading $($global:imgs.length) images"
-	# --remote-name-all
-	#Set-PSDebug -Trace 2
 	curl.exe --parallel $global:imgs
 }
