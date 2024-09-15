@@ -60,30 +60,24 @@ function Get-ChainContent($chain) {
 		@{id=$project.projectId; handle=$project.handle; displayName=$project.displayName}
 	}
 	function Get-Post($post) {
-	#write-host $post
-		$content = ($post.blocks | %{ $block = $_; switch($block.type) {
+		$content = $post.blocks | %{ $block = $_; switch($block.type) {
 			'markdown' { @{markdown=$block.markdown.content} }
 			'ask' {
 				$ask = $block.ask
-				$who = if ($ask.anon) { $ask.anon } else { Get-Project $ask.askingProject }
+				$who = if ($ask.anon) { @{anon=$ask.anon} } else { Get-Project $ask.askingProject }
 				@{ask=@{content=$ask.content; sentAt=$ask.sentAt; who=$who}}
 			}
 			default {
 				$attachment = $block.attachment
 				@{img=@{altText=$attachment.altText, $attachment.fileURL}}
 			}
-		} }) ?? @();
-		#write-host $content;
-		#write-host $content.gettype();
-		if ($content -is [hashtable]) { $content = @($content) }
-		#write-host $content.gettype();
-		@{content=$content; poster=Get-Project $post.postingProject;
+		} };
+		@{content=$content ?? @(); poster=Get-Project $post.postingProject;
 		  filename=$post.filename; publishedAt=$post.publishedAt;
 		  cws=$post.cws; tags=$post.tags}
 	}
 	$d = Get-Post $chain
 	$d.shareTree = ($chain.shareTree | %{Get-Post $_}) ?? @()
-	if ($d.shareTree -is [hashtable]) { $d.shareTree = @($d.shareTree) }
 	return $d
 }
 
@@ -96,39 +90,45 @@ function Format-WhoWhen($who, $when, $how) {
 	"**$($who.displayName) | $($who.handle)** ${how} at $(Format-Time $when)"
 }
 
-# copied from https://github.com/rust-lang/rust/blob/master/x.ps1
-function Invoke-Python($orig_args) {
-	foreach ($python in "py", "python3", "python", "python2") {
-		# NOTE: this only tests that the command exists in PATH, not that it's actually
-		# executable. The latter is not possible in a portable way, see
-		# https://github.com/PowerShell/PowerShell/issues/12625.
-		if (Get-Application $python) {
-			if ($python -eq "py") {
-				# Use python3, not python2
-				$args = @("-3") + $orig_args
-			} else {
-				$args = $orig_args
-			}
-			$input | & $python $args
-			return $LASTEXITCODE
-		}
-	}
-
-	$found = (Get-Application "python*" | Where-Object {$_.name -match '^python[2-3]\.[0-9]+(\.exe)?$'})
-	if (($null -ne $found) -and ($found.Length -ge 1)) {
-		$python = $found[0]
-		$input | & $python $orig_args
-		return $LASTEXITCODE
-	}
-
-	$msg = "${PSCommandPath}: error: did not find python installed`n"
-	$msg += "help: consider installing it from https://www.python.org/downloads/ or with ``winget install python.python.3.12``"
-	Write-Error $msg -Category NotInstalled
-	Exit 1
-}
-
 function Format-Post($post){
-#	$post
+	#write-host ($post -eq $null)
+	#write-host $post.content
+	$rendered = $post.content | %{
+		#write-host $post.content
+		$keys = $_.keys
+		if ("markdown" -in $keys) {
+			$_.markdown
+		} elseif ("ask" -in $keys) {
+			$ask = $_.ask
+			#write-host $ask
+			$content, $sent, $who = $ask.content, $ask.sentAt, $ask.who
+			$who_when = if ($who.anon) {
+				"anon asked at $(Format-Time $sent)"
+			} else {
+				Format-WhoWhen $who $send "asked"
+			}
+			'$who_when:
+
+```quote
+' + $content + '
+```'
+		} else {
+			$alt, $url = $_.img.altText ?? "", $_.img.fileUrl
+			$basename = ([uri]$url).segments[-1]
+			#write-host $_.img $alt $url $url.gettype()
+			$dst = "../img/$basename"
+			if (! (Test-Path $dst) || (Get-Item $dst).length -eq 0) {
+				curl.exe -o $dst $url
+			}
+			# markdown doesn't allow newlines in image alt text
+            # TODO: figure out how to actually keep these: https://tech.lgbt/@jyn/112117398042554191
+            $alt = $alt -replace "`n", ""
+			"![$alt](../$dst)"
+		}
+	} | Join-String -Separator "`n`n"
+	$tags = $post.tags | %{"#$_"} | Join-String -Separator ", "
+	$who_when = Format-WhoWhen $post.poster $post.publishedAt "said"
+	"$who_when`n`n$rendered`n`n$tags"
 }
 
 echo $username
@@ -140,7 +140,7 @@ New-Item -ItemType Directory -ErrorAction SilentlyContinue @('raw', 'parsed', 'r
 while($true) {
 	$html = "raw/${page}.html"
 	$parsed = "parsed/${page}.json"
-	if (! (Test-Path $html) || (Get-Item $html).length -eq 0) {
+	if (! (Test-Path $html) -or (Get-Item $html).length -eq 0) {
 		Write-Output "fetch page $page of posts"
 		echo "https://cohost.org/${username}?page=$page"
 		curl.exe -s "https://cohost.org/${username}?page=$page" > $html
@@ -152,9 +152,14 @@ while($true) {
 	}
 	Write-Output "parsing and rendering likes starting from $page"
 	#write-output $posts
-	$json = $posts | %{ Get-ChainContent $_ } | ConvertTo-Json -Depth 100
+	$ir = $posts | %{ Get-ChainContent $_ }
 	#Set-PSDebug -Trace 1
 	#write-host $parsed $json
-	$json | Tee-Object $parsed | Invoke-Python ../render.py
+	$ir | ConvertTo-Json -Depth 100 > $parsed
+	$ir | %{
+		#write-host ($_ -eq $null) ($_.shareTree -eq $null)
+		$rendered = ($_.shareTree | %{Format-Post $_}) + (Format-Post $_)
+		$rendered | Join-String -Separator "`n`n" > "rendered/$($_.filename).md"
+	}
 	$page += 1
 }
