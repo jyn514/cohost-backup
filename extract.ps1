@@ -105,20 +105,25 @@ function Format-Post($post){
 			$who_when = if ($who.anon) {
 				"anon asked at $(Format-Time $sent)"
 			} else {
-				Format-WhoWhen $who $send "asked"
+				Format-WhoWhen $who $sent "asked"
 			}
-			'$who_when:
+			'${who_when}:
 
 ```quote
 ' + $content + '
 ```'
 		} else {
 			$alt, $url = $_.img.altText ?? "", $_.img.fileUrl
-			$basename = ([uri]$url).segments[-1]
+			$url = [uri]$url
+			$hash = $url.segments[-2].TrimEnd("/")
+			$ext = [System.IO.Path]::GetExtension($url.segments[-1])
 			#write-host $_.img $alt $url $url.gettype()
-			$dst = "../img/$basename"
+			# this is a little absurd :( https://stackoverflow.com/a/73391369
+			$dst = $ExecutionContext.SessionState.Path.GetUnresolvedProviderPathFromPSPath("../img/${hash}$ext")
 			if (! (Test-Path $dst) || (Get-Item $dst).length -eq 0) {
-				curl.exe -o $dst $url
+				write-host $url
+				$global:imgs += ("-o", $dst, $url.AbsoluteUri)
+				#write-host $global:imgs
 			}
 			# markdown doesn't allow newlines in image alt text
             # TODO: figure out how to actually keep these: https://tech.lgbt/@jyn/112117398042554191
@@ -128,11 +133,12 @@ function Format-Post($post){
 	} | Join-String -Separator "`n`n"
 	$tags = $post.tags | %{"#$_"} | Join-String -Separator ", "
 	$who_when = Format-WhoWhen $post.poster $post.publishedAt "said"
-	"$who_when`n`n$rendered`n`n$tags"
+	"${who_when}:`n`n$rendered`n`n$tags"
 }
 
 echo $username
 $page = 0
+$global:imgs = @()
 New-Item -ItemType Directory -ErrorAction SilentlyContinue @('posts', 'img')
 Push-Location posts
 trap { Pop-Location }
@@ -162,4 +168,12 @@ while($true) {
 		$rendered | Join-String -Separator "`n`n" > "rendered/$($_.filename).md"
 	}
 	$page += 1
+}
+
+if ($global:imgs) {
+	#cd ..
+	Write-Host "Downloading $($global:imgs.length) images"
+	# --remote-name-all
+	#Set-PSDebug -Trace 2
+	curl.exe --parallel $global:imgs
 }
