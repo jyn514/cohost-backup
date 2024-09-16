@@ -6,13 +6,13 @@
 
 ## how do i use it
 
-ok jsyk i only tested this on WSL lol, it will *probably* work on linux as long as you remove the `.exe` suffixes.
+you will need [Powershell 7][install pwsh] installed.
+note that Windows comes pre-installed with Powershell 5 which is *not* the same and will not work. make sure to install pwsh 7 with `winget install --id Microsoft.PowerShell --source winget`.
+most linux distros package powershell for you, don't give me that look.
 
-you will need curl, python3, [jq], and [pup] installed.
-
-the entrypoint is the shell script; pass it your cohost handle
+the entrypoint is the powershell script; pass it your cohost handle
 ```
-./extract.sh jyn
+./extract.ps1 jyn
 ```
 
 the first run will take longer because it downloads a bunch of images. after that it just has to check the rendered JSON and .md files are up to date, so it should be faster.
@@ -21,7 +21,7 @@ note that the image links are relative to the *generated* markdown files, you'll
 
 ## i don't like the markdown it generates
 
-feel free to change it lol, look around `render.py`
+feel free to change it lol, look around `Format-Post`
 
 i am considering consolidating the posts into one giant amalgamation, but haven't thought of an appropriate separator between posts yet.
 
@@ -29,5 +29,4 @@ i am considering consolidating the posts into one giant amalgamation, but haven'
 
 if you want to port it to cohost.py, be my guest. i'm not gonna bother.
 
-[jq]: https://jqlang.github.io/jq/
-[pup]: https://github.com/ericchiang/pup
+[install pwsh]: https://learn.microsoft.com/en-us/powershell/scripting/install/installing-powershell?view=powershell-7.4

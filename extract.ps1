@@ -1,10 +1,10 @@
+#!/usr/bin/env pwsh
 # Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser
 
 param (
 	[Parameter(Mandatory)]
 	[string]$username
 )
-	#[string]$sid = $(Get-TokenMaybe)
 
 $ErrorActionPreference = "Stop"
 
@@ -116,7 +116,6 @@ function Format-Post($post) {
 			# this is a little absurd :( https://stackoverflow.com/a/73391369
 			$dst = $ExecutionContext.SessionState.Path.GetUnresolvedProviderPathFromPSPath("../img/${hash}$ext")
 			if (! (Test-Path $dst) || (Get-Item $dst).length -eq 0) {
-				#write-host $url
 				$global:imgs += ("-o", $dst, $url.AbsoluteUri)
 			}
 			# markdown doesn't allow newlines in image alt text
@@ -160,7 +159,7 @@ function Get-AllLikes($sid) {
 		}
 		Write-Output "parsing and rendering liked posts starting from page $page"
 		$ir = $posts | %{ Get-ChainContent $_ }
-		$ir | ConvertTo-Json -Depth 100 > $parsed
+		#$ir | ConvertTo-Json -Depth 100 > $parsed
 		$ir | %{ Write-Chain $_ }
 		$page += 1
 		$liked += $num_likes
@@ -168,10 +167,6 @@ function Get-AllLikes($sid) {
 }
 
 $sid = Get-TokenMaybe
-#write-warning $sid
-#exit 0
-
-$page = 0
 $global:imgs = @()
 
 # download posts
@@ -179,6 +174,7 @@ New-Item -ItemType Directory -ErrorAction SilentlyContinue @('posts', 'likes', '
 Push-Location posts
 trap { Pop-Location }
 New-Item -ItemType Directory -ErrorAction SilentlyContinue @('raw', 'parsed', 'rendered') >$null
+$page = 0
 while($true) {
 	$html = "raw/${page}.html"
 	$parsed = "parsed/${page}.json"
