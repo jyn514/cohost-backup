@@ -10,7 +10,7 @@ $ErrorActionPreference = "Stop"
 
 function Install-HtmlParser() {
 	# Install the PSParseHTML module on demand
-	If (-not (Get-Module -ErrorAction Ignore -ListAvailable PSParseHTML)) {
+	if (-not (Get-Module -ErrorAction Ignore -ListAvailable PSParseHTML)) {
 		Write-Output "Installing PSParseHTML module (https://github.com/EvotecIT/PSParseHTML) for the current user..."
 		Install-Module -Scope CurrentUser PSParseHTML
 	}
@@ -24,6 +24,14 @@ function Get-Posts($file) {
 	return $json.queries | %{$_.state.data.posts} | Where-Object { $_ -ne $null }
 }
 
+function Get-Likes($file) {
+	Install-HtmlParser
+	$contents = Get-Content -Raw $file
+	$dom = ConvertFrom-Html -Engine AngleSharp -Content $contents
+	$json = ConvertFrom-Json ($dom.QuerySelectorAll('script#__COHOST_LOADER_STATE__').TextContent)
+	return $json.'liked-posts-feed'.posts | Where-Object { $_ -ne $null }
+}
+
 function Get-TokenMaybe() {
 	$sid = Read-Host -MaskInput "cohost posts are public, but likes are not. to download your liked posts, this script needs to log in as you.
 to get your access token, do the following things:
@@ -35,10 +43,12 @@ to get your access token, do the following things:
 6. paste that string here.
 if for any reason you don't want this script to log in as you, or you just think that sounds hard and annoying, press Enter now to skip downloading likes.
 
-session cookie (or leave blank to skip downloading liked posts): "
+session cookie (or leave blank to skip downloading liked posts)"
 	if (! $sid) {
 		Write-Host "no token supplied; skipping liked posts"
 		return $null
+	} elseif ($sid.toLower() -in @('set-cookie', 'cookie')) {
+		Write-Error "you copied multiple lines out of devtools; this script needs you to paste exactly one line (in firefox you can right click and use 'Copy Value')"
 	}
 	(($sid -replace '.*connect.sid=([^ ;]*).*', '$1') -split '\n')[-1]
 }
@@ -80,7 +90,7 @@ function Format-WhoWhen($who, $when, $how) {
 	"**$($who.displayName) | $($who.handle)** ${how} at $(Format-Time $when)"
 }
 
-function Format-Post($post){
+function Format-Post($post) {
 	$rendered = $post.content | %{
 		$keys = $_.keys
 		if ("markdown" -in $keys) {
@@ -106,7 +116,7 @@ function Format-Post($post){
 			# this is a little absurd :( https://stackoverflow.com/a/73391369
 			$dst = $ExecutionContext.SessionState.Path.GetUnresolvedProviderPathFromPSPath("../img/${hash}$ext")
 			if (! (Test-Path $dst) || (Get-Item $dst).length -eq 0) {
-				write-host $url
+				#write-host $url
 				$global:imgs += ("-o", $dst, $url.AbsoluteUri)
 			}
 			# markdown doesn't allow newlines in image alt text
@@ -120,12 +130,55 @@ function Format-Post($post){
 	"${who_when}:`n`n$rendered`n`n$tags"
 }
 
+function Write-Chain($ir) {
+	$rendered = ($ir.shareTree | %{Format-Post $_}) + (Format-Post $ir)
+	$rendered | Join-String -Separator "`n`n" > "rendered/$($_.filename).md"
+}
+
+function Get-AllLikes($sid) {
+	# download likes
+	Push-Location ../likes
+	trap { Pop-Location }
+	New-Item -ItemType Directory -ErrorAction SilentlyContinue @('raw', 'parsed', 'rendered') >$null
+	$page = 0
+	$liked = 0
+	while($true) {
+		$html = "raw/${page}.html"
+		$parsed = "parsed/${page}.json"
+		if (! (Test-Path $html) -or (Get-Item $html).length -eq 0) {
+			Write-Output "fetch page $page of likes"
+			curl.exe --retry 3 "https://cohost.org/rc/liked-posts?skipPosts=$liked_posts" --cookie "connect.sid=$sid" -o $html
+			if ((Get-Item $html | Measure-Object -Line).lines -eq 1 -and (Get-Content $html) -like '*/rc/login*') {
+				Remove-Item $html
+				Write-Error "cohost thinks you're not logged in (are you sure you pasted the right token?)"
+			}
+		}
+		$posts = Get-Likes $html
+		$num_likes = ($posts | Measure-Object).Count
+		if ($num_likes -eq 0) {
+			break  # no posts left
+		}
+		Write-Output "parsing and rendering liked posts starting from page $page"
+		$ir = $posts | %{ Get-ChainContent $_ }
+		$ir | ConvertTo-Json -Depth 100 > $parsed
+		$ir | %{ Write-Chain $_ }
+		$page += 1
+		$liked += $num_likes
+	}
+}
+
+$sid = Get-TokenMaybe
+#write-warning $sid
+#exit 0
+
 $page = 0
 $global:imgs = @()
-New-Item -ItemType Directory -ErrorAction SilentlyContinue @('posts', 'img')
+
+# download posts
+New-Item -ItemType Directory -ErrorAction SilentlyContinue @('posts', 'likes', 'img') >$null
 Push-Location posts
 trap { Pop-Location }
-New-Item -ItemType Directory -ErrorAction SilentlyContinue @('raw', 'parsed', 'rendered')
+New-Item -ItemType Directory -ErrorAction SilentlyContinue @('raw', 'parsed', 'rendered') >$null
 while($true) {
 	$html = "raw/${page}.html"
 	$parsed = "parsed/${page}.json"
@@ -138,17 +191,21 @@ while($true) {
 	if (($posts | Measure-Object).Count -eq 0) {
 		break  # no posts left
 	}
-	Write-Output "parsing and rendering posts starting from $page"
+	Write-Output "parsing and rendering posts starting from page $page"
 	$ir = $posts | %{ Get-ChainContent $_ }
 	#$ir | ConvertTo-Json -Depth 100 > $parsed
-	$ir | %{
-		$rendered = ($_.shareTree | %{Format-Post $_}) + (Format-Post $_)
-		$rendered | Join-String -Separator "`n`n" > "rendered/$($_.filename).md"
-	}
+	$ir | %{ Write-Chain $_ }
 	$page += 1
+}
+
+
+if ($sid) {
+	Get-AllLikes $sid
+} else {
+	Write-Warning "no access token provided; can't download liked posts"
 }
 
 if ($global:imgs) {
 	Write-Host "Downloading $($global:imgs.length) images"
-	curl.exe --parallel $global:imgs
+	curl.exe --parallel --retry 3 $global:imgs
 }
