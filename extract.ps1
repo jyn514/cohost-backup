@@ -18,6 +18,8 @@ function Select-Property() {
 		$prop
 	)
     if ($obj -eq $null) { return $null }
+	# in powershell 5 `select-object` doesn't work on hashmaps :(
+	if ($obj.gettype() -eq [hashtable]) { return $obj[$prop] }
 	($obj | Select-Object $prop).$prop
 }
 
