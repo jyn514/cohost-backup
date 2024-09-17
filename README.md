@@ -17,6 +17,8 @@ most linux distros package powershell for you, don't give me that look.
 if you are familiar with git, you can git clone this repo.
 if you are not familiar with git, the powershell script is standalone and needs no other files. you can download it directly from [here][github-browser] (click "Download raw file" near the right toolbar).
 
+![image](https://github.com/user-attachments/assets/ca0e6d0c-08a3-4445-be11-2ca54ce227e3)
+
 (i can't give a direct link unfortunately because Windows tries to save it as a .txt file 😔)
 
 [github-browser]: https://github.com/jyn514/cohost-backup/blob/main/extract.ps1
