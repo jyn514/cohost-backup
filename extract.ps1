@@ -17,10 +17,11 @@ function Select-Property() {
 		[Parameter(Position, Mandatory)]
 		$prop
 	)
-	if ($obj -eq $null) { return $null }
+    if ($obj -eq $null) { return $null }
 	($obj | Select-Object $prop).$prop
 }
 
+# COALESCE
 function Skip-Null() {
 	param(
 		[Parameter(ValueFromPipeline)]
@@ -28,7 +29,7 @@ function Skip-Null() {
 		[Parameter(Position, Mandatory)]
 		$default
 	)
-  if ($obj -eq $null) { $default } else { $obj }
+	if ($obj -eq $null) { $default } else { $obj }
 }
 
 Set-Alias '?.' Select-Property
@@ -111,12 +112,12 @@ function Get-ChainContent($chain) {
 				Write-Error "unknown content type $($block.type)"
 			}
 		} };
-		@{content=$content | ?? (,@()); poster=Get-Project $post.postingProject;
+		@{content=@($content); poster=Get-Project $post.postingProject;
 		  filename=$post.filename; publishedAt=$post.publishedAt;
 		  cws=$post.cws; tags=$post.tags}
 	}
 	$d = Get-Post $chain
-	$d.shareTree = $chain.shareTree | %{Get-Post $_} | ?? (,@())
+	$d.shareTree = @($chain.shareTree | %{Get-Post $_})
 	return $d
 }
 
@@ -167,7 +168,7 @@ function Format-Post($post) {
 	}
 	$tags = $post.tags | %{"#$_"}
 	$who_when = Format-WhoWhen $post.poster $post.publishedAt "said"
-	"${who_when}:`n`n" + $rendered -join "`n`n" + "`n`n" + $tags -join ", "
+	"${who_when}:`n`n" + ($rendered -join "`n`n") + "`n`n" + ($tags -join ", ")
 }
 
 function Write-Chain($ir) {
