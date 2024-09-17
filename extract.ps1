@@ -141,7 +141,7 @@ function Format-Post($post) {
 			# markdown doesn't allow newlines in image alt text
             # TODO: figure out how to actually keep these: https://tech.lgbt/@jyn/112117398042554191
             $alt = $alt -replace "`n", ""
-			"![$alt](../$dst)"
+			"![$alt](file:///$dst)"
 		}
 	} | Join-String -Separator "`n`n"
 	$tags = $post.tags | %{"#$_"} | Join-String -Separator ", "
