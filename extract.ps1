@@ -7,6 +7,21 @@ param (
 )
 
 $ErrorActionPreference = "Stop"
+Set-StrictMode -Version Latest
+
+# Optional chaining, like `?.` in TypeScript
+function Select-Property() {
+	param(
+		[Parameter(ValueFromPipeline)]
+		$obj,
+		[Parameter(Position, Mandatory)]
+		$prop
+	)
+	if ($obj -eq $null) { return $null }
+	($obj | Select-Object $prop).$prop
+}
+
+Set-Alias '?.' Select-Property
 
 function Install-HtmlParser() {
 	# Install the PSParseHTML module on demand
@@ -21,7 +36,7 @@ function Get-Posts($file) {
 	$contents = Get-Content -Raw $file
 	$dom = ConvertFrom-Html -Engine AngleSharp -Content $contents
 	$json = ConvertFrom-Json ($dom.QuerySelectorAll('script#trpc-dehydrated-state').TextContent)
-	return $json.queries | %{$_.state.data.posts} | Where-Object { $_ -ne $null }
+	return $json.queries | %{$_.state | ?. data | ?. posts} | Where-Object { $_ -ne $null }
 }
 
 function Get-Likes($file) {
@@ -64,12 +79,15 @@ function Get-ChainContent($chain) {
 			'markdown' { @{markdown=$block.markdown.content} }
 			'ask' {
 				$ask = $block.ask
-				$who = if ($ask.anon) { @{anon=$ask.anon} } else { Get-Project $ask.askingProject }
+				$who = if ($ask | ?. anon) { @{anon=$ask.anon} } else { Get-Project $ask.askingProject }
 				@{ask=@{content=$ask.content; sentAt=$ask.sentAt; who=$who}}
 			}
-			default {
+			'attachment' {
 				$attachment = $block.attachment
-				@{img=@{altText=$attachment.altText, $attachment.fileURL}}
+				@{img=@{altText=$attachment | ?. altText; fileUrl=$attachment.fileUrl}}
+			}
+			default {
+				Write-Error "unknown content type $($block.type)"
 			}
 		} };
 		@{content=$content ?? @(); poster=Get-Project $post.postingProject;
@@ -98,7 +116,7 @@ function Format-Post($post) {
 		} elseif ("ask" -in $keys) {
 			$ask = $_.ask
 			$content, $sent, $who = $ask.content, $ask.sentAt, $ask.who
-			$who_when = if ($who.anon) {
+			$who_when = if ($who | ?. anon) {
 				"anon asked at $(Format-Time $sent)"
 			} else {
 				Format-WhoWhen $who $sent "asked"
@@ -109,8 +127,7 @@ function Format-Post($post) {
 ' + $content + '
 ```'
 		} else {
-			$alt, $url = $_.img.altText ?? "", $_.img.fileUrl
-			$url = [uri]$url
+			$alt, $url = ($_.img.altText ?? ""), [uri]$_.img.fileUrl
 			$hash = $url.segments[-2].TrimEnd("/")
 			$ext = [System.IO.Path]::GetExtension($url.segments[-1])
 			# this is a little absurd :( https://stackoverflow.com/a/73391369
