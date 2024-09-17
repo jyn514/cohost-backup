@@ -51,7 +51,8 @@ note that the image links are relative to the *generated* markdown files, you'll
 
 ### how can i view the files it creates
 
-use 
+you can use any markdown renderer; i like [obsidian](https://obsidian.md/).
+you also have the option to use the `Show-Markdown` commandlet built into powershell.
 
 ### are you really sure i have to use powershell
 
