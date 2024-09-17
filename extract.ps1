@@ -75,9 +75,9 @@ function Get-TokenMaybe() {
 	$sid = Read-Host -MaskInput "cohost posts are public, but likes are not. to download your liked posts, this script needs to log in as you.
 to get your access token, do the following things:
 1. open https://cohost.org/ while logged in.
-2. open the devtools network tab. if you are on firefox, press ctrl+shift+e. if you are on chrome, press ctrl+shift+i, then click on the 'Network' tab.
+2. open the devtools network tab. if you are on firefox, press ctrl+shift+e. if you are on chrome or edge, press ctrl+shift+i, then click on the 'Network' tab.
 3. on the left panel, click on any request which sends a session cookie to cohost.org ('login.loggedIn,projects.listEditedProjects' is often near the top, that's fine to use).
-4. on the right panel, click on 'Filter Headers', then type 'Cookie'.
+4. filter for the 'Cookie' header. in firefox, on the right panel, click on 'Filter Headers'. in chrome, press ctrl+f.
 5. under 'Request Headers', you should see a string starting with 'Cookie: connect.sid='. right click it and hit 'copy value'.
 6. paste that string here.
 if for any reason you don't want this script to log in as you, or you just think that sounds hard and annoying, press Enter now to skip downloading likes.
