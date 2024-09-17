@@ -52,7 +52,7 @@ function Install-HtmlParser() {
 function download() {
     # powershell silently strips unknown dash args????
 	$curlArgs = $MyInvocation.UnboundArguments
-	curl --retry 3 --fail $curlArgs
+	$input | curl --retry 3 --fail $curlArgs
 }
 
 function Get-Posts($file) {
@@ -249,5 +249,5 @@ if ($sid) {
 
 if ($global:imgs) {
 	Write-Host "Downloading $($global:imgs.length) images"
-	$global:imgs | download -K -
+	$global:imgs | download --parallel -K -
 }
