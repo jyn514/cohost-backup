@@ -48,9 +48,7 @@ function Install-HtmlParser() {
 
 function download() {
     # powershell silently strips unknown dash args????
-	# https://stackoverflow.com/a/56754205/7669110
-	$argStr = $MyInvocation.statement -replace '^download ', ''
-	$curlArgs = if ($argStr) { @(Invoke-Expression "Write-Output -- $argStr") } else { @() }
+	$curlArgs = $MyInvocation.UnboundArguments
 	curl --retry 3 --fail $curlArgs
 }
 
