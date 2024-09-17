@@ -37,8 +37,7 @@ Set-Alias '??' Skip-Null
 function Install-HtmlParser() {
 	# Install the PSParseHTML module on demand
 	if (-not (Get-Module -ErrorAction Ignore -ListAvailable PSParseHTML)) {
-		Write-Output "Installing PSParseHTML module (https://github.com/EvotecIT/PSParseHTML) for the current user..."
-		Install-Module -Scope CurrentUser PSParseHTML
+		Install-Module -Scope CurrentUser -Force PSParseHTML
 	}
 }
 
@@ -95,7 +94,6 @@ function Get-ChainContent($chain) {
 			}
 			'attachment' {
 				$attachment = $block.attachment
-        write-host $attachment
 				@{img=@{altText=$attachment | ?. altText; fileUrl=$attachment.fileURL}}
 			}
 			default {
@@ -140,7 +138,6 @@ function Format-Post($post) {
 ```'
 		} else {
 			$alt, $url = ($_.img.altText | ?? ""), [uri]$_.img.fileUrl
-      write-host $url
 			$hash = $url.segments[-2].TrimEnd("/")
 			$ext = [System.IO.Path]::GetExtension($url.segments[-1])
 			# this is a little absurd :( https://stackoverflow.com/a/73391369
