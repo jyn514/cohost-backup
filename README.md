@@ -6,18 +6,52 @@
 
 ## how do i use it
 
-you will need [Powershell 7][install pwsh] installed.
-note that Windows comes pre-installed with Powershell 5 which is *not* the same and will not work. make sure to install pwsh 7 with `winget install --id Microsoft.PowerShell --source winget`.
+### what do i need to install
+
+you will need [Powershell][install pwsh] installed.
+Windows comes pre-installed with Powershell 5; that's fine.
 most linux distros package powershell for you, don't give me that look.
+
+### how do i download it
+
+if you are familiar with git, you can git clone this repo.
+if you are not familiar with git, the powershell script is standalone and needs no other files. you can download it directly from [here](https://raw.githubusercontent.com/jyn514/cohost-backup/main/extract.ps1).
+
+### how do i run it
 
 the entrypoint is the powershell script; pass it your cohost handle
 ```
 ./extract.ps1 jyn
 ```
 
+if you don't know what the `./` symbols mean, you can also right click the script in Windows Explorer and click 'Run with Powershell'; it will prompt you for your username.
+
+### what does it do
+
+the script will create this directory structure:
+```
+PS C:\Users\jyn\src\cohost-backup> tree
+Folder PATH listing
+C:.
+├───img
+├───likes
+│   ├───parsed
+│   ├───raw
+│   └───rendered
+└───posts
+    ├───parsed
+    ├───raw
+    └───rendered
+```
+the files you care about are in `rendered`. there will be a lot of them, especially in `likes`.
+
 the first run will take longer because it downloads a bunch of images. after that it just has to check the rendered JSON and .md files are up to date, so it should be faster.
 
 note that the image links are relative to the *generated* markdown files, you'll need to be in the `rendered` directory for the links to work right.
+
+### how can i view the files it creates
+
+use 
 
 ### are you really sure i have to use powershell
 

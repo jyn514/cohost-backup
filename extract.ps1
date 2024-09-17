@@ -21,7 +21,18 @@ function Select-Property() {
 	($obj | Select-Object $prop).$prop
 }
 
+function Skip-Null() {
+	param(
+		[Parameter(ValueFromPipeline)]
+		$obj,
+		[Parameter(Position, Mandatory)]
+		$default
+	)
+  if ($obj -eq $null) { $default } else { $obj }
+}
+
 Set-Alias '?.' Select-Property
+Set-Alias '??' Skip-Null
 
 function Install-HtmlParser() {
 	# Install the PSParseHTML module on demand
@@ -84,24 +95,25 @@ function Get-ChainContent($chain) {
 			}
 			'attachment' {
 				$attachment = $block.attachment
-				@{img=@{altText=$attachment | ?. altText; fileUrl=$attachment.fileUrl}}
+        write-host $attachment
+				@{img=@{altText=$attachment | ?. altText; fileUrl=$attachment.fileURL}}
 			}
 			default {
 				Write-Error "unknown content type $($block.type)"
 			}
 		} };
-		@{content=$content ?? @(); poster=Get-Project $post.postingProject;
+		@{content=$content | ?? (,@()); poster=Get-Project $post.postingProject;
 		  filename=$post.filename; publishedAt=$post.publishedAt;
 		  cws=$post.cws; tags=$post.tags}
 	}
 	$d = Get-Post $chain
-	$d.shareTree = ($chain.shareTree | %{Get-Post $_}) ?? @()
+	$d.shareTree = $chain.shareTree | %{Get-Post $_} | ?? (,@())
 	return $d
 }
 
 function Format-Time($when) {
 	# TODO: show the abbreviated time zone too
-	$when.toLocalTime().toString("yyyy-MM-dd HH:mm:ss")
+	([datetime]$when).toLocalTime().toString("yyyy-MM-dd HH:mm:ss")
 }
 
 function Format-WhoWhen($who, $when, $how) {
@@ -127,12 +139,13 @@ function Format-Post($post) {
 ' + $content + '
 ```'
 		} else {
-			$alt, $url = ($_.img.altText ?? ""), [uri]$_.img.fileUrl
+			$alt, $url = ($_.img.altText | ?? ""), [uri]$_.img.fileUrl
+      write-host $url
 			$hash = $url.segments[-2].TrimEnd("/")
 			$ext = [System.IO.Path]::GetExtension($url.segments[-1])
 			# this is a little absurd :( https://stackoverflow.com/a/73391369
 			$dst = $ExecutionContext.SessionState.Path.GetUnresolvedProviderPathFromPSPath("../img/${hash}$ext")
-			if (! (Test-Path $dst) || (Get-Item $dst).length -eq 0) {
+			if (! (Test-Path $dst) -or (Get-Item $dst).length -eq 0) {
 				# note: curl tries to interpret backslashes in configs :(
 				$global:imgs += 'output="' + ($dst -replace "\\", "\\") + '"'
 				# for reasons i don't understand, powershell puts this on the same line when passed to curl if we use $imgs += (output, url), so it has to be a separate statement
@@ -143,15 +156,15 @@ function Format-Post($post) {
             $alt = $alt -replace "`n", ""
 			"![$alt](file:///$dst)"
 		}
-	} | Join-String -Separator "`n`n"
-	$tags = $post.tags | %{"#$_"} | Join-String -Separator ", "
+	}
+	$tags = $post.tags | %{"#$_"}
 	$who_when = Format-WhoWhen $post.poster $post.publishedAt "said"
-	"${who_when}:`n`n$rendered`n`n$tags"
+	"${who_when}:`n`n" + $rendered -join "`n`n" + "`n`n" + $tags -join ", "
 }
 
 function Write-Chain($ir) {
 	$rendered = ($ir.shareTree | %{Format-Post $_}) + (Format-Post $ir)
-	$rendered | Join-String -Separator "`n`n" > "rendered/$($_.filename).md"
+	$rendered -join "`n`n" > "rendered/$($_.filename).md"
 }
 
 function Get-AllLikes($sid) {
@@ -179,7 +192,7 @@ function Get-AllLikes($sid) {
 		}
 		Write-Output "parsing and rendering liked posts starting from page $page"
 		$ir = $posts | %{ Get-ChainContent $_ }
-		#$ir | ConvertTo-Json -Depth 100 > $parsed
+		$ir | ConvertTo-Json -Depth 100 > $parsed
 		$ir | %{ Write-Chain $_ }
 		$page += 1
 		$liked += $num_likes
@@ -209,7 +222,7 @@ while($true) {
 	}
 	Write-Output "parsing and rendering posts starting from page $page"
 	$ir = $posts | %{ Get-ChainContent $_ }
-	#$ir | ConvertTo-Json -Depth 100 > $parsed
+	$ir | ConvertTo-Json -Depth 100 > $parsed
 	$ir | %{ Write-Chain $_ }
 	$page += 1
 }
