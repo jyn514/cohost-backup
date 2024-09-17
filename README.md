@@ -19,6 +19,10 @@ the first run will take longer because it downloads a bunch of images. after tha
 
 note that the image links are relative to the *generated* markdown files, you'll need to be in the `rendered` directory for the links to work right.
 
+### are you really sure i have to use powershell
+
+there is a previous version in bash but i consider it unmaintained and will probably delete it eventually. run it with `./extract.sh username`.
+
 ## i don't like the markdown it generates
 
 feel free to change it lol, look around `Format-Post`

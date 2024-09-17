@@ -116,7 +116,10 @@ function Format-Post($post) {
 			# this is a little absurd :( https://stackoverflow.com/a/73391369
 			$dst = $ExecutionContext.SessionState.Path.GetUnresolvedProviderPathFromPSPath("../img/${hash}$ext")
 			if (! (Test-Path $dst) || (Get-Item $dst).length -eq 0) {
-				$global:imgs += ("-o", $dst, $url.AbsoluteUri)
+				# note: curl tries to interpret backslashes in configs :(
+				$global:imgs += 'output="' + ($dst -replace "\\", "\\") + '"'
+				# for reasons i don't understand, powershell puts this on the same line when passed to curl if we use $imgs += (output, url), so it has to be a separate statement
+				$global:imgs += 'url='+$url.AbsoluteUri
 			}
 			# markdown doesn't allow newlines in image alt text
             # TODO: figure out how to actually keep these: https://tech.lgbt/@jyn/112117398042554191
@@ -145,8 +148,8 @@ function Get-AllLikes($sid) {
 		$html = "raw/${page}.html"
 		$parsed = "parsed/${page}.json"
 		if (! (Test-Path $html) -or (Get-Item $html).length -eq 0) {
-			Write-Output "fetch page $page of likes"
-			curl.exe --retry 3 "https://cohost.org/rc/liked-posts?skipPosts=$liked_posts" --cookie "connect.sid=$sid" -o $html
+			Write-Output "fetching page $page of likes"
+			curl.exe --retry 3 "https://cohost.org/rc/liked-posts?skipPosts=$liked" --cookie "connect.sid=$sid" -o $html
 			if ((Get-Item $html | Measure-Object -Line).lines -eq 1 -and (Get-Content $html) -like '*/rc/login*') {
 				Remove-Item $html
 				Write-Error "cohost thinks you're not logged in (are you sure you pasted the right token?)"
@@ -203,5 +206,5 @@ if ($sid) {
 
 if ($global:imgs) {
 	Write-Host "Downloading $($global:imgs.length) images"
-	curl.exe --parallel --retry 3 $global:imgs
+	$global:imgs | curl.exe --parallel --retry 3 -K -
 }
