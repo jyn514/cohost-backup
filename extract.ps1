@@ -35,8 +35,12 @@ Set-Alias '?.' Select-Property
 Set-Alias '??' Skip-Null
 if (Test-Path Alias:curl) { Remove-Item Alias:curl }
 
+# Install the PSParseHTML module on demand
 function Install-HtmlParser() {
-	# Install the PSParseHTML module on demand
+	# Avoid a prompt on base windows
+	if (-not (Get-PackageProvider -ListAvailable | Where-Object Name -eq NuGet)) {
+		Install-PackageProvider -Scope CurrentUser -Force -name NuGet
+	}
 	if (-not (Get-Module -ErrorAction Ignore -ListAvailable PSParseHTML)) {
 		Install-Module -Scope CurrentUser -Force PSParseHTML
 	}
