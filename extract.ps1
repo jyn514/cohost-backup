@@ -167,8 +167,11 @@ function Format-Post($post) {
 		}
 	}
 	$tags = $post.tags | %{"#$_"}
-	$who_when = Format-WhoWhen $post.poster $post.publishedAt "said"
-	"${who_when}:`n`n" + ($rendered -join "`n`n") + "`n`n" + ($tags -join ", ")
+	$descr = if ($post.content) { "said" } else { "reshared this post" }
+	$who_when = Format-WhoWhen $post.poster $post.publishedAt $descr
+	$combined = if ($post.content) { "${who_when}: `n`n" + ($rendered -join "`n`n") } else { $who_when }
+	if ($tags) { $combined += "`n`n" + ($tags -join ", ") }
+	$combined
 }
 
 function Write-Chain($ir) {
