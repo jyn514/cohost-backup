@@ -15,7 +15,11 @@ most linux distros package powershell for you, don't give me that look.
 ### how do i download it
 
 if you are familiar with git, you can git clone this repo.
-if you are not familiar with git, the powershell script is standalone and needs no other files. you can download it directly from [here](https://raw.githubusercontent.com/jyn514/cohost-backup/main/extract.ps1).
+if you are not familiar with git, the powershell script is standalone and needs no other files. you can download it directly from [here][github-browser] (click "Download raw file" near the right toolbar).
+
+(i can't give a direct link unfortunately because Windows tries to save it as a .txt file 😔)
+
+[github-browser]: https://github.com/jyn514/cohost-backup/blob/main/extract.ps1
 
 ### how do i run it
 
@@ -24,7 +28,14 @@ the entrypoint is the powershell script; pass it your cohost handle
 ./extract.ps1 jyn
 ```
 
+#### wait what does that mean where do i type that
+
 if you don't know what the `./` symbols mean, you can also right click the script in Windows Explorer and click 'Run with Powershell'; it will prompt you for your username.
+
+if that does nothing and exits, you likely have powershell scripts blocked (this is the default).
+do the following things:
+1. right click on the folder and click 'Open in Terminal'
+2. run `powershell.exe -noprofile -executionpolicy bypass -file .\extract.ps1`
 
 ### what does it do
 
@@ -45,9 +56,7 @@ C:.
 ```
 the files you care about are in `rendered`. there will be a lot of them, especially in `likes`.
 
-the first run will take longer because it downloads a bunch of images. after that it just has to check the rendered JSON and .md files are up to date, so it should be faster.
-
-note that the image links are relative to the *generated* markdown files, you'll need to be in the `rendered` directory for the links to work right.
+the first run will take longer because it downloads a bunch of images. after that it just has to ensure the rendered JSON and .md files are up to date, so it should be faster.
 
 ### how can i view the files it creates
 

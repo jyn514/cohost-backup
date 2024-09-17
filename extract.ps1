@@ -1,5 +1,4 @@
 #!/usr/bin/env pwsh
-# Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser
 
 param (
 	[Parameter(Mandatory)]
@@ -7,6 +6,7 @@ param (
 )
 
 $ErrorActionPreference = "Stop"
+$PSNativeCommandUseErrorActionPreference = $true
 Set-StrictMode -Version Latest
 
 # Optional chaining, like `?.` in TypeScript
@@ -33,12 +33,21 @@ function Skip-Null() {
 
 Set-Alias '?.' Select-Property
 Set-Alias '??' Skip-Null
+if (Test-Path Alias:curl) { Remove-Item Alias:curl }
 
 function Install-HtmlParser() {
 	# Install the PSParseHTML module on demand
 	if (-not (Get-Module -ErrorAction Ignore -ListAvailable PSParseHTML)) {
 		Install-Module -Scope CurrentUser -Force PSParseHTML
 	}
+}
+
+function download() {
+    # powershell silently strips unknown dash args????
+	# https://stackoverflow.com/a/56754205/7669110
+	$argStr = $MyInvocation.statement -replace '^download ', ''
+	$curlArgs = if ($argStr) { @(Invoke-Expression "Write-Output -- $argStr") } else { @() }
+	curl --retry 3 --fail $curlArgs
 }
 
 function Get-Posts($file) {
@@ -176,7 +185,7 @@ function Get-AllLikes($sid) {
 		$parsed = "parsed/${page}.json"
 		if (! (Test-Path $html) -or (Get-Item $html).length -eq 0) {
 			Write-Output "fetching page $page of likes"
-			curl.exe --retry 3 "https://cohost.org/rc/liked-posts?skipPosts=$liked" --cookie "connect.sid=$sid" -o $html
+			download --no-progress-meter "https://cohost.org/rc/liked-posts?skipPosts=$liked" --cookie "connect.sid=$sid" -o $html
 			if ((Get-Item $html | Measure-Object -Line).lines -eq 1 -and (Get-Content $html) -like '*/rc/login*') {
 				Remove-Item $html
 				Write-Error "cohost thinks you're not logged in (are you sure you pasted the right token?)"
@@ -210,8 +219,7 @@ while($true) {
 	$parsed = "parsed/${page}.json"
 	if (! (Test-Path $html) -or (Get-Item $html).length -eq 0) {
 		Write-Output "fetch page $page of posts"
-		echo "https://cohost.org/${username}?page=$page"
-		curl.exe -s "https://cohost.org/${username}?page=$page" > $html
+		download --no-progress-meter "https://cohost.org/${username}?page=$page" -o $html
 	}
 	$posts = Get-Posts $html
 	if (($posts | Measure-Object).Count -eq 0) {
@@ -233,5 +241,5 @@ if ($sid) {
 
 if ($global:imgs) {
 	Write-Host "Downloading $($global:imgs.length) images"
-	$global:imgs | curl.exe --parallel --retry 3 -K -
+	$global:imgs | download -K -
 }
