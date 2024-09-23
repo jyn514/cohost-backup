@@ -58,7 +58,6 @@ function download() {
 }
 
 function Get-Posts($file) {
-	Install-HtmlParser
 	$contents = Get-Content -Raw $file
 	$dom = ConvertFrom-Html -Engine AngleSharp -Content $contents
 	$json = ConvertFrom-Json ($dom.QuerySelectorAll('script#trpc-dehydrated-state').TextContent)
@@ -217,6 +216,7 @@ function Get-AllLikes($sid) {
 
 $sid = Get-TokenMaybe
 $global:imgs = @()
+Install-HtmlParser
 
 # download posts
 New-Item -ItemType Directory -ErrorAction SilentlyContinue @('posts', 'likes', 'img') >$null
