@@ -37,6 +37,8 @@ function Skip-Null() {
 Set-Alias '?.' Select-Property
 Set-Alias '??' Skip-Null
 if (Test-Path Alias:curl) { Remove-Item Alias:curl }
+# not a typo https://stackoverflow.com/a/24743647/7669110
+if (Test-Path Alias:curl) { Remove-Item Alias:curl }
 
 # Install the PSParseHTML module on demand
 function Install-HtmlParser() {
