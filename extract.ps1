@@ -111,6 +111,12 @@ function Get-ChainContent($chain) {
 				$attachment = $block.attachment
 				@{img=@{altText=$attachment | ?. altText; fileUrl=$attachment.fileURL}}
 			}
+			'attachment-row' {
+				foreach ($att in $block.attachments) {
+					$attachment = $att.attachment
+					@{img=@{altText=$attachment | ?. altText; fileUrl=$attachment.fileURL}}
+				}
+			}
 			default {
 				Write-Error "unknown content type $($block.type)"
 			}
